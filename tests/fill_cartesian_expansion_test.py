@@ -76,3 +76,19 @@ def test_default_value():
                         how='anti')
     
     assert set(new_rows['val'].unique().to_list()) == set([expected])
+
+def test_redundant_call():
+    df = _get_mock_data()
+    res = fill_cartesian_expansion(df,
+                                   time_c='time',
+                                   entry_l=['country', 'weather']).sort(['time', 'country', 'weather'])
+    res_redundant = fill_cartesian_expansion(res,
+                                             time_c='time',
+                                             entry_l=['country', 'weather']).sort(['time', 'country', 'weather'])
+    
+    assert res.equals(res_redundant)
+
+def test_no_entries_error():
+    df = _get_mock_data()
+    with pytest.raises(ValueError):
+        res = fill_cartesian_expansion(df)
