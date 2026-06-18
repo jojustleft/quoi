@@ -1,5 +1,7 @@
+from datetime import datetime
 import polars as pl
 import warnings
+from typing import List
 
 polars_allowed_types = str | int | float | bool | None
 
@@ -74,3 +76,84 @@ def get_value(df: pl.DataFrame,
 
     _mapping = dict(zip(df[key_c], df[value_c]))
     return _mapping.get(key, default)
+
+def fill_cartesian_expansion(df: pl.DataFrame,
+                             time_c: str = None,
+                             entry_l: List[str] = None,
+                             default: polars_allowed_types = 0,
+                             interval: str = '1d',
+                             start_ts: datetime = None,
+                             end_ts: datetime = None):
+    '''
+    Add missing entry combinations to data using cartesian product of all possible entries.
+    Useful for timeseries with missing dates.
+
+    Caveats:
+     - Possible cartesian explosion. This method is not recommended for heavier dataframes;
+     - Assumes independence between every entry column;
+     - This method only considers observed entries.
+
+    Parameters
+    ----------
+    df : polars.DataFrame
+        Dataframe containing data with missing entries.
+    time_c : str, default None
+        Column containing datetime info. If provided, will create a standalone time range based on minimum
+        and maximum timestamps in provided data.
+    entry_l : list[str], default None
+        List of entries used to fill missing data with.
+    default : str | int | float | bool | None, default None
+        Value new rows will be created with.
+    interval : str, default '1d'
+        Delta between timestamps.
+    start_ts : datetime.datetime, default None
+        If provided, will override the default start time (data's lowest timestamp)
+    end_ts : datetime.datetime, default None
+        If provided, will override the default end time (data's highest timestamp)
+
+    Returns
+    -------
+    polars.DataFrame
+    '''
+
+    if time_c is None and not entry_l:
+        raise ValueError('time_c and/or entry_l must be provided.')
+
+    join_c = []
+    df_comb = pl.DataFrame()
+    
+    if time_c is not None:
+        min_t = df[time_c].min() if not start_ts else start_ts
+        max_t = df[time_c].max() if not end_ts else end_ts
+        if isinstance(df.schema[time_c], pl.Date):
+            df_comb = pl.DataFrame(pl.date_range(start=min_t,
+                                                 end=max_t,
+                                                 interval=interval,
+                                                 eager=True).alias(time_c))
+        else:
+            time_unit = df.schema[time_c].time_unit
+            df_comb = pl.DataFrame(pl.datetime_range(start=min_t,
+                                                     end=max_t,
+                                                     interval=interval,
+                                                     time_unit=time_unit,
+                                                     eager=True).alias(time_c))
+        join_c.append(time_c)
+
+    if entry_l:
+        df_entry = pl.DataFrame(df[entry_l[0]].unique())
+        join_c.append(entry_l[0])
+        for el in entry_l[1:]:
+            to_add = pl.DataFrame(df[el].unique())
+            df_entry = df_entry.join(to_add, how='cross')
+            join_c.append(el)
+
+        if not df_comb.is_empty():
+            df_comb = df_comb.join(df_entry, how='cross')
+        else:
+            df_comb = df_entry
+    
+    col_order = df.columns
+    res = df.join(df_comb, on=join_c, how='right')[col_order]
+    res = res.fill_null(default)
+
+    return res
