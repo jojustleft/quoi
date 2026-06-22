@@ -11,20 +11,19 @@ def test_seconds_duration_default():
 
     assert duration_to_interval(_default_duration) == expected
 
+
 def test_full_datetime_to_interval_seconds():
     days = 10
     hours = 5
     minutes = 45
     seconds = 20
     expected = _default_res
-    expected.update(days=days, 
-                    hours=hours,
-                    minutes=minutes,
-                    seconds=seconds)
+    expected.update(days=days, hours=hours, minutes=minutes, seconds=seconds)
 
     duration = (days * 60 * 60 * 24) + (hours * 60 * 60) + (minutes * 60) + seconds
 
     assert duration_to_interval(duration) == expected
+
 
 def test_full_datetime_to_interval_milliseconds():
     days = 10
@@ -33,21 +32,30 @@ def test_full_datetime_to_interval_milliseconds():
     seconds = 20
     milliseconds = 850
     expected = _default_res
-    expected.update(days=days, 
-                    hours=hours,
-                    minutes=minutes,
-                    seconds=seconds,
-                    milliseconds=milliseconds)
-    
-    duration = (days * 60 * 60 * 24 * 1000) + (hours * 60 * 60 * 1000) +\
-        (minutes * 60 * 1000) + (seconds * 1000) + milliseconds
+    expected.update(
+        days=days,
+        hours=hours,
+        minutes=minutes,
+        seconds=seconds,
+        milliseconds=milliseconds,
+    )
 
-    assert duration_to_interval(duration, units='ms') == expected
+    duration = (
+        (days * 60 * 60 * 24 * 1000)
+        + (hours * 60 * 60 * 1000)
+        + (minutes * 60 * 1000)
+        + (seconds * 1000)
+        + milliseconds
+    )
+
+    assert duration_to_interval(duration, units="ms") == expected
+
 
 def test_unknown_unit_type_error():
     with pytest.raises(ValueError):
-        duration_to_interval(_default_duration, units='??')
+        duration_to_interval(_default_duration, units="??")
+
 
 def test_non_integer_duration_error():
     with pytest.raises(ValueError):
-        duration_to_interval('500')
+        duration_to_interval("500")
