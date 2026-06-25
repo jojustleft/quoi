@@ -20,8 +20,8 @@ def get_top(
     ----------
     df : polars.DataFrame
         Dataframe containing data with entries and values that will be aggregated.
-    entry_c : str
-        Column name containing entries to aggregate.
+    entry_c : str | list[str]
+        Column name or list of column names containing entries to aggregate.
     value_c : str
         Column name containing values that will be aggregated.
     method : polars.expr, default polars.Expr.sum
@@ -40,7 +40,12 @@ def get_top(
     )
 
     if calculate_share:
-        if res[value_c].dtype.is_numeric() and df[value_c].min() < 0:
+        # Count aggregations are made an exception since they always range from 0 to infinity
+        if (
+            res[value_c].dtype.is_numeric()
+            and df[value_c].min() < 0
+            and method != pl.Expr.count
+        ):
             warnings.warn("Input contains negative values, skipping share calculation.")
         else:
             res = res.with_columns(
@@ -174,3 +179,54 @@ def fill_cartesian_expansion(
     res = res.fill_null(default)
 
     return res
+
+
+def fill_based_on(df: pl.DataFrame, base: str, target: str, drop_missing: bool = False):
+    """
+    Fill values of target column based on rows where base column has the same value.
+    This is done by obtaining a 1:1 mapping between base and target columns and making
+    a join with the provided data.
+
+    Mapping between base and target data are expected to be 1:1. A given value in base
+    can only map to one unique value in target.
+
+    Parameters
+    ----------
+    df : polars.DataFrame
+        Dataframe containing data with missing entries.
+    base : str
+        Column containing keys used to map to expected values.
+    target : str
+        Column used to fill missing data with.
+    drop_missing : bool, default False
+        If set to True, values in target always missing will be dropped.
+
+    Returns
+    -------
+    polars.DataFrame
+
+    Raises
+    ------
+        ValueError : Mapping between base and target data is not 1:1.
+    """
+
+    col_order = df.columns
+    mapping = (
+        df.filter((~pl.col(base).is_null()) & (~pl.col(target).is_null()))
+        .group_by([base, target])
+        .len(name="count")
+        .drop("count")
+    )
+
+    if mapping[base].value_counts()["count"].max() != 1:
+        raise ValueError(f"Mapping between {base} and {target} is not 1:1.")
+    if mapping.is_empty():
+        raise ValueError(f"Empty mapping between {base} and {target}.")
+
+    join_type = "full" if not drop_missing else "right"
+    df = (
+        df.join(mapping, on=base, how=join_type, coalesce=True)
+        .drop(target)
+        .rename({target + "_right": target})
+    )
+    return df[col_order]
