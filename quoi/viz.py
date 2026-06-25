@@ -24,7 +24,9 @@ layout = dict(
             x=0,
             yanchor="bottom",
             yref="container",
-            y=0.94,
+            y=0.92,
+            automargin=True,
+            pad_b=10,
         ),
         xaxis=dict(
             title=dict(
@@ -39,6 +41,7 @@ layout = dict(
             mirror=True,
             zeroline=False,
             gridcolor=layout_config["grid"],
+            automargin=True,
         ),
         yaxis=dict(
             title=dict(
@@ -53,6 +56,7 @@ layout = dict(
             mirror=True,
             zeroline=False,
             gridcolor=layout_config["grid"],
+            automargin=True,
         ),
         legend=dict(
             title=dict(
@@ -70,6 +74,7 @@ layout = dict(
             font=dict(family=layout_config["default_font"]),
             bgcolor="rgba(0, 0, 0, 0)",
         ),
+        hoverlabel=dict(align="left"),
         colorway=layout_config["entries"],
         margin=dict(t=75, b=75, l=75, r=75, pad=5),
     )
