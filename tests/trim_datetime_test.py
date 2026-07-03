@@ -18,9 +18,7 @@ def test_trim_to_month():
 
 
 def test_trim_to_year():
-    expected = _default_dt.replace(
-        month=1, day=1, hour=0, minute=0, second=0, microsecond=0
-    )
+    expected = _default_dt.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
     assert trim_datetime(_default_dt, lowest_unit="year") == expected
 

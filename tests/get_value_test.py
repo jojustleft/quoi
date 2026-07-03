@@ -29,10 +29,13 @@ def test_missing_value_default():
     df = _get_mock_data()
     _expected = -1
 
-    assert (
-        get_value(df, key_c=_key_c, value_c=_value_c, key="??", default=_expected)
-        == _expected
-    )
+    assert get_value(df, key_c=_key_c, value_c=_value_c, key="??", default=_expected) == _expected
+
+
+def test_existing_value():
+    df = _get_mock_data()
+
+    assert get_value(df, key_c=_key_c, value_c=_value_c, key="PT") == "Portugal"
 
 
 def test_repeated_key_error():
@@ -44,7 +47,8 @@ def test_repeated_key_error():
         get_value(df, key_c=_key_c, value_c=_value_c, key="PT")
 
 
-def test_existing_value():
+def test_key_type_error():
     df = _get_mock_data()
 
-    assert get_value(df, key_c=_key_c, value_c=_value_c, key="PT") == "Portugal"
+    with pytest.raises(ValueError):
+        get_value(df, key_c=_key_c, value_c=_value_c, key=list())
