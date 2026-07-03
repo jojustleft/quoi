@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 import polars as pl
 import pytest
 from quoi.stats import fill_based_on

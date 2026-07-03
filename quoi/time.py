@@ -1,6 +1,8 @@
 from datetime import datetime
 from collections import OrderedDict
 
+__all__ = ["duration_to_interval", "trim_datetime"]
+
 
 def duration_to_interval(duration: int, units="s"):
     """
@@ -20,9 +22,7 @@ def duration_to_interval(duration: int, units="s"):
     dict
     """
     if not isinstance(duration, int):
-        raise ValueError(
-            "Expected int for 'duration', received {}".format(type(duration))
-        )
+        raise ValueError("Expected int for 'duration', received {}".format(type(duration)))
     if units not in ("s", "ms"):
         raise ValueError("Unknown unit type: {}".format(units))
 
@@ -73,14 +73,10 @@ def trim_datetime(dt, lowest_unit="day"):
     """
     # There's likely a better way to do this
     # Keeps order of units and their default values
-    units = OrderedDict(
-        year=1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0
-    )
+    units = OrderedDict(year=1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
     if not isinstance(dt, datetime):
-        raise ValueError(
-            "Expected datetime.datetime for 'dt', received {}".format(type(dt))
-        )
+        raise ValueError("Expected datetime.datetime for 'dt', received {}".format(type(dt)))
     if lowest_unit not in (list(units.keys())[:-1]):
         raise ValueError("Unknown unit type: {}".format(units))
 
