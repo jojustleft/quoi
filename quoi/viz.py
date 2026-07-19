@@ -41,10 +41,10 @@ layout = dict(
             xref="paper",
             x=0,
             yanchor="bottom",
-            yref="container",
-            y=0.92,
-            automargin=True,
-            pad_b=10,
+            yref="paper",
+            y=1,
+            automargin=False,
+            pad_b=40,
         ),
         xaxis=dict(
             title=dict(
@@ -337,11 +337,12 @@ def plot_area(
 
     plot_y_col = y
     if as_share:
-        df = df.with_columns((pl.col(y) / pl.col(y).sum()).over(pl.col(x) * 100).alias("__share_area"))
+        df = df.with_columns(((pl.col(y) / pl.col(y).sum()).over(pl.col(x)) * 100).alias("__share_area"))
         plot_y_col = "__share_area"
+        fig.update_yaxes(range=(0, 100))
 
     for entry, group in df.group_by(breakdown, maintain_order=True):
-        fig.add_trace(go.Scatter(x=group[x], y=group[plot_y_col], name=entry, stackgroup="one"))
+        fig.add_trace(go.Scatter(x=group[x], y=group[plot_y_col], name=entry[0], stackgroup="one"))
 
     add_titles(
         fig,
@@ -354,6 +355,12 @@ def plot_area(
 
     if as_share:
         fig.update_yaxes(ticksuffix="%")
+
+    if legend_replace:
+        for i in range(len(fig.data)):
+            curr_name = fig.data[i].name
+            replace_name = legend_replace.get(curr_name, curr_name)
+            fig.data[i].name = replace_name
 
     if return_fig:
         return fig
