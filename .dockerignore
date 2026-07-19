@@ -1,0 +1,8 @@
+__pycache__
+.env
+.venv
+.pytest_cache
+.ipynb_checkpoints
+.ruff_cache
+.git
+.github

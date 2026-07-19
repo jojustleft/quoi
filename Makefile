@@ -28,3 +28,7 @@ clean: # Remove all temporary files / folders and the virtual environment
 	rm -rf .venv
 	rm -rf build
 	rm -rf quoi.egg-info
+
+.PHONY: docker
+docker: # Run lint and test suite in a Docker image
+	docker build . -t quoi:latest
