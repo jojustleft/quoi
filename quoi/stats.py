@@ -1,18 +1,16 @@
 from datetime import datetime
 import polars as pl
+import plotly.graph_objects as go
+from statistics import NormalDist
 import warnings
 from typing import List
+
+from quoi.viz import add_titles
 
 polars_allowed_types = str | int | float | bool | None
 polars_data_types = pl.DataFrame | pl.Series
 
-__all__ = [
-    "summary",
-    "fill_based_on",
-    "fill_cartesian_expansion",
-    "get_top",
-    "get_value",
-]
+__all__ = ["summary", "fill_based_on", "fill_cartesian_expansion", "get_top", "get_value", "qq_plot"]
 
 
 def summary(df: pl.DataFrame) -> pl.DataFrame:
@@ -135,7 +133,7 @@ def fill_cartesian_expansion(
     interval: str = "1d",
     start_ts: datetime = None,
     end_ts: datetime = None,
-):
+) -> pl.DataFrame:
     """
     Add missing entry combinations to data using cartesian product of all possible entries.
     Useful for timeseries with missing dates.
@@ -320,3 +318,87 @@ def normalize(
             x_max = dt[col].max() if not shared_scope else shared_x_max
             dt = dt.with_columns(((pl.col(col) - x_min) / (x_max - x_min)).alias(col + "_normalized"))
         return dt
+
+
+def z_score(dt: pl.Series):
+    """
+    Calculate the Z-score (standard score) of a series.
+    Formula: z = (x - mean) / standard_deviation
+
+    Parameters
+    ----------
+    dt: polars.Series
+        Series containing data sample
+    """
+    z_series = (dt - dt.mean()) / dt.std()
+
+    return z_series
+
+
+def qq_plot(s: pl.Series, return_fig=False, quartile_line=True, identity_line=False):
+    s_sort = s.sort()
+    s_rank = s_sort.rank()
+    s_prob = (s_rank - 0.5) / s_rank.len()
+
+    # Comparing against a normal distribution of mean 0, deviation 1
+    dist = NormalDist(mu=0, sigma=1)
+
+    # TODO: better way to calculate this?
+    expected_quantiles = s_prob.map_elements(lambda x: dist.inv_cdf(x))
+    obtained_quantiles = z_score(s_sort)
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=expected_quantiles,
+            y=obtained_quantiles,
+            mode="markers",
+            name="QQ",
+            marker=dict(color="rgba(0,0,0,0)", line=dict(color=fig.layout.template.layout.colorway[0], width=1)),
+        )
+    )
+
+    # We define the start and end of both lines as a bit beyond the start and end of the data itself
+    line_x_0 = expected_quantiles.min() - abs(expected_quantiles.min() / 10)
+    line_x_1 = expected_quantiles.max() + abs(expected_quantiles.max() / 10)
+
+    # Quartile line (line that passes by both 1st and 3rd quartiles)
+    if quartile_line:
+        x1, x2 = expected_quantiles.quantile([0.25, 0.75])
+        y1, y2 = obtained_quantiles.quantile([0.25, 0.75])
+        slope = (y2 - y1) / (x2 - x1)
+        intercept = y1 - slope * x1
+
+        line_y_0 = slope * line_x_0 + intercept
+        line_y_1 = slope * line_x_1 + intercept
+
+        fig.add_trace(
+            go.Scatter(
+                x=[line_x_0, line_x_1],
+                y=[line_y_0, line_y_1],
+                name="Quartile line",
+                mode="lines",
+                hoverinfo="skip",
+                line=dict(dash="dash"),
+            )
+        )
+
+    # Identity line (y = x)
+    if identity_line:
+        fig.add_trace(
+            go.Scatter(
+                x=[line_x_0, line_x_1],
+                y=[line_x_0, line_x_1],
+                name="Identity line",
+                mode="lines",
+                hoverinfo="skip",
+                line=dict(dash="dash"),
+            )
+        )
+
+    add_titles(fig, x_title="Expected normal quantiles", y_title="Obtained data quantiles")
+
+    if return_fig:
+        return fig
+    else:
+        fig.show()
