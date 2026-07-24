@@ -13,6 +13,7 @@ __all__ = [
     "plot_area",
     "setup_chart_template",
     "add_titles",
+    "plot_anomalies",
 ]
 
 # TODO:
@@ -156,7 +157,7 @@ def plot_line(
     legend_summary: bool = False,
     return_fig: bool = False,
     hovertemplate: str = None,
-):
+) -> go.Figure:
     if title is None and subtitle is not None:
         raise ValueError("title must be provided when subtitle is not empty.")
     if breakdown and (isinstance(y, list) and len(y) > 1):
@@ -241,7 +242,7 @@ def plot_bar(
     trim_x: int = None,
     trim_y: int = None,
     orientation="v",
-):
+) -> go.Figure:
     if title is None and subtitle is not None:
         raise ValueError("title must be provided when subtitle is not empty.")
 
@@ -332,7 +333,7 @@ def plot_area(
     legend_title: str = None,
     legend_replace: dict = None,
     return_fig: bool = False,
-):
+) -> go.Figure:
     fig = go.Figure()
 
     plot_y_col = y
@@ -487,3 +488,61 @@ def add_titles(
     chart_update_args["legend_title"] = bold_text(legend_title) if legend_title else None
 
     fig.update_layout(**chart_update_args)
+
+
+def plot_anomalies(
+    df: pl.DataFrame,
+    x: str,
+    y: str,
+    anomaly_col: str = None,
+    anomaly_series: pl.Series = None,
+    upper_bound: float = None,
+    lower_bound: float = None,
+    return_fig: bool = True
+) -> go.Figure:
+
+    if (anomaly_col is None) == (anomaly_series is None):
+        raise ValueError("Either 'anomaly_col' or 'anomaly_series' must be provided")
+
+    # We can filter by either a boolean column in data or by providing one
+    anomaly_filter = pl.col(anomaly_col) if anomaly_col is not None else anomaly_series
+    df_anomalies_only = df.filter(anomaly_filter)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df[x], y=df[y], name="Input"))
+    fig.add_trace(go.Scatter(x=df_anomalies_only[x], y=df_anomalies_only[y], mode="markers", name="Anomalies"))
+
+    # Threshold boundaries
+    if upper_bound is not None and lower_bound is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=[df[x].min(), df[x].max()],
+                y=[upper_bound, upper_bound],
+                mode="lines",
+                line=dict(width=0),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[df[x].min(), df[x].max()],
+                y=[lower_bound, lower_bound],
+                mode="lines",
+                line=dict(width=0),
+                showlegend=False,
+                hoverinfo="skip",
+                fill="tonexty",
+                name="Threshold boundary",
+            )
+        )
+    # A warning is raised if only one boundary is provided
+    elif (upper_bound is None) != (lower_bound is None):
+        warnings.warn("Both upper and lower bounds were not provided, skipping boundary visualization.")
+
+    add_titles(fig, x_title=x, y_title=y)
+
+    if return_fig:
+        return fig
+    else:
+        fig.show()
