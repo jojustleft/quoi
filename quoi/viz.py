@@ -5,6 +5,10 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import warnings
 
+from quoi._utils import get_shared_dict_schema
+
+allowed_iterable_types = tuple | list | dict
+
 __all__ = [
     "bold_text",
     "build_subtitle",
@@ -496,9 +500,9 @@ def plot_anomalies(
     y: str,
     anomaly_col: str = None,
     anomaly_series: pl.Series = None,
-    upper_bound: float = None,
-    lower_bound: float = None,
-    return_fig: bool = True
+    upper_bound: str = None,
+    lower_bound: str = None,
+    return_fig: bool = True,
 ) -> go.Figure:
 
     if (anomaly_col is None) == (anomaly_series is None):
@@ -516,8 +520,8 @@ def plot_anomalies(
     if upper_bound is not None and lower_bound is not None:
         fig.add_trace(
             go.Scatter(
-                x=[df[x].min(), df[x].max()],
-                y=[upper_bound, upper_bound],
+                x=df[x],
+                y=df[upper_bound],
                 mode="lines",
                 line=dict(width=0),
                 showlegend=False,
@@ -526,8 +530,8 @@ def plot_anomalies(
         )
         fig.add_trace(
             go.Scatter(
-                x=[df[x].min(), df[x].max()],
-                y=[lower_bound, lower_bound],
+                x=df[x],
+                y=df[lower_bound],
                 mode="lines",
                 line=dict(width=0),
                 showlegend=False,
@@ -546,3 +550,73 @@ def plot_anomalies(
         return fig
     else:
         fig.show()
+
+def fig_merge_as_dropdown(fig_list: allowed_iterable_types) -> go.Figure:
+    """
+    Concatenate provided Plotly figures into a single chart with dropdown menu.
+    The first chart on the iterable input will be treated as the default view.
+
+    Warnings
+    --------
+     - Since dropdowns are set to "update", both the data and layout will be changed when selecting new views. This means that
+    all provided figures will be considered fully independent from each other, and they will not share layout configurations
+    (with the exception of the first figure's template, if any).
+     - By extension, all figures will be assumed to have the same template (if any).
+     - This method assumes provided charts have a flat data organization (no dropdowns, no animations, no subcharts).
+     - This method will not preserve trace status: if a given figure hides a trace by default, it will be set to visible
+    for the respective dropdown option.
+    """
+    if not any((isinstance(fig_list, t) for t in (tuple, list, dict))):
+        raise TypeError(f"Expected tuple, list or dict type for fig_list, received {type(fig_list).__name__}")
+
+    # Check that fig_list has at least two figure types
+    if len(fig_list) < 2:
+        raise ValueError(f"At least two figure types must be provided, received {len(fig_list)}")
+
+    dropdown_views = []
+    styles = {}
+    is_dict = isinstance(fig_list, dict)
+    stack = tuple(fig_list.items() if is_dict else enumerate(fig_list))
+
+    # Check that each element is a figure type
+    if not all(isinstance(f, go.Figure) for _, f in stack):
+        raise ValueError("Every element in fig_list must be of go.Figure type")
+
+    # Note that the first figure will be *a copy* of the default view
+    fig = go.Figure(data=stack[0][1].data, layout=stack[0][1].layout)
+
+    # Parse each figure's traces and layout into their respective lists
+    for i, (n, f) in enumerate(stack):
+        for tr in f.data:
+            dropdown_views.append(n)
+            if i > 0:
+                tr.update(dict(visible=False))
+                fig.add_trace(tr)
+
+        curr_style = f.layout.to_plotly_json()
+        if 'template' in curr_style:
+            del curr_style['template']
+        styles[n] = curr_style
+
+    # style_schema is an empty dictionary containing all possible (observed) layout parameters, acting as an empty template that we use to stylize
+    # each dropdown view afterwards.
+    # This is because each style field must be reconfigured or "reset" with 'None', otherwise style configurations persist between dropdown views
+    style_schema = get_shared_dict_schema((styles.values()))
+
+    dropdowns = [
+        dict(
+            active=0,
+            buttons=list([
+                dict(label=opt, method='update',
+                     args=[{'visible': [el == opt for el in dropdown_views]},
+                           style_schema | styles[opt],
+                          ]) for opt in list(dict.fromkeys(dropdown_views))
+            ]),
+            direction='down',
+            showactive=True,
+            x=1,
+            y=1.25,
+    )]
+
+    fig.update_layout(updatemenus=dropdowns)
+    return fig
