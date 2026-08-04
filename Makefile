@@ -31,4 +31,4 @@ clean: # Remove all temporary files / folders and the virtual environment
 
 .PHONY: docker
 docker: # Run lint and test suite in a Docker image
-	docker build . -t quoi:latest
+	docker build --target test -t quoi:test .

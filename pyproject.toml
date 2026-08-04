@@ -17,6 +17,9 @@ dev = [
     "ruff>=0.15.17",
 ]
 
+[tool.setuptools.packages.find]
+include = ["quoi"]
+
 [tool.ruff]
 extend-exclude = ["*.ipynb"]
 line-length = 120
