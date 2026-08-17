@@ -1,18 +1,22 @@
-import pytest
 from quoi._utils import get_shared_dict_schema
 
+
 def simple_dicts():
-    d1 = {'field_1_1': 123, 'field_1_2': '...', 'field_shared': 100}
-    d2 = {'field_2_1': 150, 'field_shared': 250}
+    d1 = {"field_1_1": 123, "field_1_2": "...", "field_shared": 100}
+    d2 = {"field_2_1": 150, "field_shared": 250}
     return d1, d2
 
+
 def nested_dicts():
-    d1 = {'field_1_1': 123, 'field_1_2': '...', 
-          'field_nested_1': {'field_1_3': True},
-          'field_nested_shared': {'field_shared_1': 1}
+    d1 = {
+        "field_1_1": 123,
+        "field_1_2": "...",
+        "field_nested_1": {"field_1_3": True},
+        "field_nested_shared": {"field_shared_1": 1},
     }
-    d2 = {'field_2_1': 150, 'field_nested_shared': {'field_2_2': 384, 'field_2_empty': None}}
+    d2 = {"field_2_1": 150, "field_nested_shared": {"field_2_2": 384, "field_2_empty": None}}
     return d1, d2
+
 
 def is_empty(d):
     for k, v in d.items():

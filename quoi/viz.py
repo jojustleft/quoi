@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import warnings
 
-from quoi._utils import get_shared_dict_schema
+from quoi._utils import check_non_empty_data, get_shared_dict_schema
 
 allowed_iterable_types = tuple | list | dict
 
@@ -147,6 +147,7 @@ def build_default_hovertemplate(fig: go.Figure) -> go.Figure:
     return hovertemplate
 
 
+@check_non_empty_data
 def plot_line(
     df: pl.DataFrame,
     x: str,
@@ -227,6 +228,7 @@ def plot_line(
     fig.show()
 
 
+@check_non_empty_data
 def plot_bar(
     df: pl.DataFrame,
     x: str,
@@ -324,6 +326,7 @@ def plot_bar(
     fig.show()
 
 
+@check_non_empty_data
 def plot_area(
     df: pl.DataFrame,
     x: str,
@@ -494,6 +497,7 @@ def add_titles(
     fig.update_layout(**chart_update_args)
 
 
+@check_non_empty_data
 def plot_anomalies(
     df: pl.DataFrame,
     x: str,
@@ -551,6 +555,7 @@ def plot_anomalies(
     else:
         fig.show()
 
+
 def fig_merge_as_dropdown(fig_list: allowed_iterable_types) -> go.Figure:
     """
     Concatenate provided Plotly figures into a single chart with dropdown menu.
@@ -594,8 +599,8 @@ def fig_merge_as_dropdown(fig_list: allowed_iterable_types) -> go.Figure:
                 fig.add_trace(tr)
 
         curr_style = f.layout.to_plotly_json()
-        if 'template' in curr_style:
-            del curr_style['template']
+        if "template" in curr_style:
+            del curr_style["template"]
         styles[n] = curr_style
 
     # style_schema is an empty dictionary containing all possible (observed) layout parameters, acting as an empty template that we use to stylize
@@ -606,17 +611,25 @@ def fig_merge_as_dropdown(fig_list: allowed_iterable_types) -> go.Figure:
     dropdowns = [
         dict(
             active=0,
-            buttons=list([
-                dict(label=opt, method='update',
-                     args=[{'visible': [el == opt for el in dropdown_views]},
-                           style_schema | styles[opt],
-                          ]) for opt in list(dict.fromkeys(dropdown_views))
-            ]),
-            direction='down',
+            buttons=list(
+                [
+                    dict(
+                        label=opt,
+                        method="update",
+                        args=[
+                            {"visible": [el == opt for el in dropdown_views]},
+                            style_schema | styles[opt],
+                        ],
+                    )
+                    for opt in list(dict.fromkeys(dropdown_views))
+                ]
+            ),
+            direction="down",
             showactive=True,
             x=1,
             y=1.25,
-    )]
+        )
+    ]
 
     fig.update_layout(updatemenus=dropdowns)
     return fig
