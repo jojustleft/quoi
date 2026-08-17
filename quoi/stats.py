@@ -5,14 +5,16 @@ from statistics import NormalDist
 import warnings
 from typing import List
 
+from quoi._utils import check_non_empty_data
 from quoi.viz import add_titles
 
 polars_allowed_types = str | int | float | bool | None
 polars_data_types = pl.DataFrame | pl.Series
 
-__all__ = ["summary", "fill_based_on", "fill_cartesian_expansion", "get_top", "get_value", "qq_plot"]
+__all__ = ["summary", "fill_based_on", "fill_cartesian_expansion", "get_top", "get_value", "normalize", "qq_plot"]
 
 
+@check_non_empty_data
 def summary(df: pl.DataFrame) -> pl.DataFrame:
     """
     Calculate a summary table containing various metadata about each column:
@@ -31,9 +33,6 @@ def summary(df: pl.DataFrame) -> pl.DataFrame:
     ValueError
         DataFrame is empty.
     """
-    if df.is_empty():
-        raise ValueError("Received empty dataframe")
-
     rows = []
     for col in df.columns:
         row = {
@@ -47,6 +46,7 @@ def summary(df: pl.DataFrame) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
+@check_non_empty_data
 def get_top(
     df: pl.DataFrame,
     entry_c: str,
@@ -84,6 +84,7 @@ def get_top(
     return res
 
 
+@check_non_empty_data
 def get_value(
     df: pl.DataFrame,
     key_c: str,
@@ -202,11 +203,14 @@ def fill_cartesian_expansion(
 
     col_order = df.columns
     res = df.join(df_comb, on=join_c, how="right")[col_order]
-    res = res.fill_null(default)
+
+    if default:
+        res = res.fill_null(default)
 
     return res
 
 
+@check_non_empty_data
 def fill_based_on(df: pl.DataFrame, base: str, target: str, drop_missing: bool = False):
     """
     Fill values of target column based on rows where base column has the same value.
@@ -251,6 +255,7 @@ def fill_based_on(df: pl.DataFrame, base: str, target: str, drop_missing: bool =
     return df[col_order]
 
 
+@check_non_empty_data
 def normalize(
     dt: polars_data_types,
     x: str | list = None,
@@ -291,8 +296,6 @@ def normalize(
     """
     if not any([isinstance(dt, t) for t in (pl.Series, pl.DataFrame)]):
         raise ValueError(f"Expected dt as type polars.DataFrame or polars.Series, received: {type(dt)}")
-    if dt.is_empty():
-        raise ValueError("Received empty data")
 
     if isinstance(dt, pl.Series):
         if not dt.dtype.is_numeric():
@@ -320,6 +323,7 @@ def normalize(
         return dt
 
 
+@check_non_empty_data
 def z_score(dt: pl.Series):
     """
     Calculate the Z-score (standard score) of a series.
@@ -335,6 +339,7 @@ def z_score(dt: pl.Series):
     return z_series
 
 
+@check_non_empty_data
 def qq_plot(s: pl.Series, return_fig=False, quartile_line=True, identity_line=False):
     s_sort = s.sort()
     s_rank = s_sort.rank()
