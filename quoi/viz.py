@@ -123,14 +123,18 @@ def bold_text(s):
 
     return f"<b>{s}</b>"
 
+def change_legend_to_vertical(fig):
+    fig.layout.template.layout.legend.update({'xanchor': None, 'x': None,
+                                              'yanchor': None, 'y': None,
+                                              'orientation': 'v'})
 
 def build_default_hovertemplate(fig: go.Figure) -> go.Figure:
-    legend_title = fig.layout.legend_title.replace("<b>", "").replace("</b>", "") if fig.layout.legend_title else ""
+    legend_title = fig.layout.legend.title.text.replace("<b>", "").replace("</b>", "") if fig.layout.legend.title.text else ""
 
     hovertemplate = "<br>".join(
         [
-            "%{x}",
             ("<b>" + legend_title + ":</b> %{fullData.name}") if legend_title else "",
+            "<b>%{xaxis.title.text}:</b> %{x}",
             "<b>%{yaxis.title.text}:</b> %{y}<extra></extra>",
         ]
     ).replace("<br><br>", "<br>")
@@ -160,8 +164,10 @@ def plot_line(
     legend_title: str = None,
     legend_replace: dict = None,
     legend_summary: bool = False,
+    vertical_legend: bool = False,
     return_fig: bool = False,
     hovertemplate: str = None,
+    as_marker: bool = False,
 ) -> go.Figure:
     if title is None and subtitle is not None:
         raise ValueError("title must be provided when subtitle is not empty.")
@@ -169,6 +175,7 @@ def plot_line(
         raise ValueError("If breakdown is provided, y must be a single column")
 
     fig = go.Figure()
+    trace_mode = 'markers' if as_marker else None
 
     dict_summary = dict()
     if legend_summary:
@@ -192,12 +199,14 @@ def plot_line(
 
     if breakdown is not None:
         for entry, group in df.group_by(breakdown):
-            fig.add_trace(go.Scatter(x=group[x], y=group[y], name=entry[0]))
+            fig.add_trace(go.Scatter(x=group[x], y=group[y], name=entry[0],
+                                     mode=trace_mode))
 
     else:
         cols_to_plot = [y] if isinstance(y, str) else y
         for el in cols_to_plot:
-            fig.add_trace(go.Scatter(x=df[x], y=df[el], name=el))
+            fig.add_trace(go.Scatter(x=df[x], y=df[el], name=el,
+                                     mode=trace_mode))
 
     add_titles(
         fig,
@@ -222,6 +231,9 @@ def plot_line(
             curr_value = dict_summary.get(curr_name)
             curr_value_str = f" ({curr_value:.2f}%)" if curr_value else ""
             fig.data[i].name = replace_name + curr_value_str
+
+    if vertical_legend:
+        change_legend_to_vertical(fig)
 
     if return_fig:
         return fig
@@ -410,7 +422,7 @@ def trim_labels(
 
     def _append_custom_data(customdata, to_add):
         if customdata is None:
-            return np.stack((to_add), axis=-1)
+            return np.stack([to_add], axis=-1)
         else:
             return np.stack(
                 [customdata[:, i] for i in range(customdata.shape[1])] + [to_add],
@@ -433,9 +445,10 @@ def trim_labels(
             fig.data[i][selector] = [el if len(el) <= trim else f"{el[:trim]}..." for el in original_values]
             fig.data[i].customdata = _append_custom_data(fig.data[i].customdata, original_values)
             _new_index = fig.data[i].customdata.shape[-1] - 1
-            fig.data[i].hovertemplate = fig.data[i].hovertemplate.replace(
-                f"%{{{selector}}}", f"%{{customdata[{_new_index}]}}"
-            )
+            if fig.data[i].hovertemplate:
+                fig.data[i].hovertemplate = fig.data[i].hovertemplate.replace(
+                    f"%{{{selector}}}", f"%{{customdata[{_new_index}]}}"
+                )
 
     return fig
 
@@ -628,6 +641,9 @@ def fig_merge_as_dropdown(fig_list: allowed_iterable_types) -> go.Figure:
             showactive=True,
             x=1,
             y=1.25,
+            bordercolor=layout_config["grid"],
+            borderwidth=1.5,
+            font=dict(family='Helvetica', color=layout_config["subtitle_color"])
         )
     ]
 
