@@ -204,7 +204,7 @@ def fill_cartesian_expansion(
     col_order = df.columns
     res = df.join(df_comb, on=join_c, how="right")[col_order]
 
-    if default:
+    if default is not None:
         res = res.fill_null(default)
 
     return res
