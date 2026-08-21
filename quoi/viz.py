@@ -434,7 +434,7 @@ def trim_labels(
     if len(fig.data) == 0:
         raise ValueError("Chart has no traces")
 
-    fig = deepcopy(fig)
+    fig = go.Figure(fig)
 
     for i in range(len(fig.data)):
         for selector, trim in zip(("x", "y"), (x_trim, y_trim)):
@@ -443,7 +443,13 @@ def trim_labels(
 
             original_values = fig.data[i][selector]
             fig.data[i][selector] = [el if len(el) <= trim else f"{el[:trim]}..." for el in original_values]
-            fig.data[i].customdata = _append_custom_data(fig.data[i].customdata, original_values)
+
+            # Arrays must follow a (len * n_dim) shape, but customdata added manually does not guarantee that
+            current_customdata = fig.data[i].customdata
+            if current_customdata is not None and len(current_customdata.shape) == 1:
+                current_customdata = np.expand_dims(current_customdata, axis=-1)
+            
+            fig.data[i].customdata = _append_custom_data(current_customdata, original_values)
             _new_index = fig.data[i].customdata.shape[-1] - 1
             if fig.data[i].hovertemplate:
                 fig.data[i].hovertemplate = fig.data[i].hovertemplate.replace(
